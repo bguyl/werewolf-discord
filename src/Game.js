@@ -11,16 +11,25 @@ module.exports = class Game {
     this.guild = this.message.guild
     this.owner = discordUser
     this.players = []
+    this.werewolfs = []
     this.mainChannel = {}
     this.started = false
     this.everyone = this.guild.roles.find(r => r.name === '@everyone')
     this.everyonePerms = { deny: 515136, id: this.everyone.id } // Deny the permission to see a channel for @everyone
   }
 
+  /**
+   * Get the current number of players
+   * @returns integer
+   */
   get nbPlayers () {
     return this.players.length
   }
 
+  /**
+   * Add the player to the current game
+   * @param {Discord.User} discordUser
+   */
   addPlayer (discordUser) {
     if (this.started) { return }
     this.players.push(discordUser)
@@ -32,6 +41,10 @@ module.exports = class Game {
     )
   }
 
+  /**
+   * Remove the player from the current game
+   * @param {Discord.User} discordUser
+   */
   removePlayer (discordUser) {
     if (this.started) { return }
     let playerIdx = this.players.findIndex(p => p.id === discordUser.id)
@@ -46,13 +59,37 @@ module.exports = class Game {
     }
   }
 
+  /**
+   * Start a game
+   */
   start () {
     this.started = true
     this.message.delete()
-    this.guild.createChannel(`game#${this.id}`, 'text', [
-      { allow: 263168, id: this.owner.id }, // Allow the game's owner to see the channel
-      this.everyonePerms
-    ])
+    let playersRights = [this.everyonePerms]
+
+    for (let i = 0; i < this.nbPlayers; i++) {
+      playersRights.push({ allow: 263168, id: this.players[i].id }) // Allow players to see the channel
+    }
+
+    this.guild.createChannel(`village#${this.id}`, 'text', playersRights).then(async c => {
+      c.setParent(await this.getGamesCategory(this.guild))
+      this.mainChannel = c
+    })
+  }
+
+  /**
+   * Get the games category or create it
+   * @param {Discord.Guild} guild
+   * @returns {Promise<Discord.Channel>}
+   */
+  async getGamesCategory (guild) {
+    if (this.gamesCat) { return Promise.resolve(this.gamesCat) }
+    this.gamesCat = guild.channels.find(c => (c.name.toLowerCase() === 'games' && c.type === 'category'))
+    if (!this.gamesCat) {
+      this.gamesCat = guild.createChannel('games', 'category')
+      return this.gamesCat
+    }
+    return Promise.resolve(this.gamesCat)
   }
 }
 module.exports.count = 0
