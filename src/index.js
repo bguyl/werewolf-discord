@@ -60,8 +60,8 @@ client.on('message', command => {
   if (command.content === '!create' && !game) {
     createGame(command)
   } else if (command.content === '!start' && game && !game.started) {
-    game.start()
     command.delete()
+    game.start()
   }
 })
 
