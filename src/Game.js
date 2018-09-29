@@ -38,7 +38,7 @@ module.exports = class Game {
     this.roles = []
     this.started = false
     this.everyone = this.guild.roles.find(r => r.name === '@everyone')
-    this.everyonePerms = { deny: 515136, id: this.everyone.id } // Deny the permission to see a channel for @everyone
+    this.everyonePerms = { deny: ['VIEW_CHANNEL'], id: this.everyone.id } // Deny the permission to see a channel for @everyone
   }
 
   /**
@@ -92,29 +92,48 @@ module.exports = class Game {
     let playersRights = [this.everyonePerms]
 
     for (let i = 0; i < this.nbPlayers; i++) {
-      playersRights.push({ allow: 263168, id: this.players[i].user.id }) // Allow players to see the channel
+      playersRights.unshift({ allow: ['VIEW_CHANNEL', 'READ_MESSAGE_HISTORY'], id: this.players[i].user.id }) // Allow players to see the channel
       await this.guild.createChannel( // Create the `user only` channel
         `${this.players[i].user.username}__${this.id}`,
         'text',
-        [this.everyonePerms, { allow: 263168, id: this.players[i].user.id }]
+        [this.everyonePerms, { allow: 66560, id: this.players[i].user.id }]
       ).then(async c => {
         c.setParent(await this.getGamesCategory(this.guild))
         this.players[i].channel = c
       })
       this.players[i].role = this.roles.pop()
-      this.players[i].role.channel.overwritePermissions(this.players[i].user, { VIEW_CHANNEL: true })
+      if (this.players[i].role.channel ) {
+        this.players[i].role.channel.overwritePermissions(this.players[i].user, { VIEW_CHANNEL: true, READ_MESSAGE_HISTORY: true })
+      }
       this.players[i].channel.send(
         new Discord.RichEmbed()
-          .setTitle('Your role is:' + this.players[i].role.name)
+          .setTitle('Your role is: ' + this.players[i].role.name)
           .setDescription(this.players[i].role.description)
           .setImage(this.players[i].role.imageUrl)
         )
     }
 
-    this.guild.createChannel(`village__${this.id}`, 'text', playersRights).then(async c => {
+    await this.guild.createChannel(`village__${this.id}`, 'text', playersRights).then(async c => {
       c.setParent(await this.getGamesCategory(this.guild))
       this.channels.village = c
     })
+
+    this.channels.village.send('A peaceful night fall on the village of Millers Hollow ...')
+      .then(async () => {
+        let currentPlayer = this.players.find(p => p.role.name === 'Fortune teller')
+        if (!currentPlayer) { return Promise.resolve() }
+        let msg = `You wake up and use your powers to see through a person mind.\nChoose a person to check his role\n`
+        let others = this.players.filter(p => p.user.id !== currentPlayer.user.id)
+        for (let i = 0; i < others.length; i++) {
+          msg += `${i+1}. ${others[i].user.username}\n`
+        }
+        return this.channels.fortuneTeller.send(msg).then(m => {
+          let em = ['one', 'two', 'three', 'four', 'five']
+          for (let i = 0; i < others.length; i++) {
+            m.react(em[i])
+          }
+        })
+      })
   }
 
   /**
@@ -136,6 +155,7 @@ module.exports = class Game {
         this.channels.werewolfs = c
         werewolf.channel = c
       })
+
 
     const ordinaryTownsfolk = new Role(
       'Ordinary townsfolk',
@@ -169,7 +189,6 @@ module.exports = class Game {
         this.channels.witch = c
         witch.channel = c
       })
-
     await Promise.all([werewolfsChan, fortuneTellerChan, witchChan])
     return shuffle([werewolf, werewolf, ordinaryTownsfolk, ordinaryTownsfolk, fortuneTeller, witch])
   }

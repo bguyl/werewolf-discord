@@ -6,6 +6,6 @@ module.exports = class Player {
   constructor (discordUser) {
     this.user = discordUser
     this.role = {}
-    this.channel = {}
+    this.channel = null
   }
 }

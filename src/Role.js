@@ -9,6 +9,6 @@ module.exports = class Role {
     this.name = name
     this.description = description
     this.imageUrl = imageUrl
-    this.channel = {}
+    this.channel = null
   }
 }
