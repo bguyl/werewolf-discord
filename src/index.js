@@ -63,6 +63,15 @@ client.on('message', command => {
     command.delete()
     game.start()
   }
+
+  // TODO: Remove this command in prod
+  if (command.content === '!clear') {
+    command.channel.fetchMessages().then(messages => {
+      messages.forEach(m => {
+        m.delete()
+      })
+    })
+  }
 })
 
 client.on('messageReactionAdd', (msgReaction, user) => {
