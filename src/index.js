@@ -44,8 +44,13 @@ async function getToken () {
 
 // ==== Bot events ==== //
 let games = []
+let generalChannel = {}
 
-client.on('ready', () => {
+client.on('ready', async () => {
+  generalChannel = await client.guilds.first().channels.find(c => c.name === 'general' && c.type === 'text')
+  // The next line remove the channels the bot previously created
+  // TODO: Remove this function in prod
+  client.guilds.first().channels.filter(c => c.name.toLocaleLowerCase().match(/.*__.*/) && c.type === 'text').forEach(c => c.delete())
   console.log(`
   The Werewolfs of Millers Hollow - Discord Bot
   v${pkg.version}
@@ -54,14 +59,28 @@ client.on('ready', () => {
 })
 
 client.on('message', command => {
+  // Allow commands only in general
+  if (generalChannel.id !== command.channel.id) { return }
+
   // Verify is the author own a game. If he do, he can't create a new one.
   // The owner is the only who can start a game
   let game = games.find(g => g.owner.id === command.author.id)
   if (command.content === '!create' && !game) {
     createGame(command)
   } else if (command.content === '!start' && game && !game.started) {
-    game.start()
     command.delete()
+    game.start()
+  } else if (command.content === '!help') {
+    command.channel.send(`!create: Create a new game\n!start: Start the game previously created`)
+  }
+
+  // TODO: Remove this command in prod
+  if (command.content === '!clear') {
+    command.channel.fetchMessages().then(messages => {
+      messages.forEach(m => {
+        m.delete()
+      })
+    })
   }
 })
 
@@ -69,9 +88,10 @@ client.on('messageReactionAdd', (msgReaction, user) => {
   if (user.id === client.user.id) { return } // If it's the bot itself, ignore
 
   // Find the game the message is a attached to
+  // Only on game creation message
   // TODO: Check the reaction type
   let game = games.find(g => g.message.id === msgReaction.message.id)
-  if (game) {
+  if (game && user.id !== game.owner.id) {
     game.addPlayer(user)
   }
 })
@@ -95,7 +115,7 @@ function createGame (command) {
   command.channel.send(
     new Discord.RichEmbed()
       .setTitle('Create a game')
-      .setDescription(`Want to join ?\n 0/6`)
+      .setDescription(`Want to join ?\n 1/6`)
       .setColor(0xFF0000)
   ).then(message => {
     message.react('👍')
