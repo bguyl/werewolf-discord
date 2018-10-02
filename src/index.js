@@ -65,11 +65,12 @@ client.on('message', command => {
   // Verify is the author own a game. If he do, he can't create a new one.
   // The owner is the only who can start a game
   let game = games.find(g => g.owner.id === command.author.id)
-  if (command.content === '!create' && !game) {
+  //if (command.content.content === '!create' && !game) {
+  if( command.content.includes('!create') && !game ){
     createGame(command)
   } else if (command.content === '!start' && game && !game.started) {
     command.delete()
-    game.start()
+    game.start(client)
   } else if (command.content === '!help') {
     command.channel.send(`!create: Create a new game\n!start: Start the game previously created`)
   }

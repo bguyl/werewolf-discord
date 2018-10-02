@@ -16,6 +16,7 @@ module.exports = class Game {
     this.id = Game.count++
     this.message = discordMessage
     this.guild = this.message.guild
+    this.client = discordMessage.user
     this.owner = discordUser
     this.players = [new Player(discordUser)]
     this.werewolfs = []
@@ -38,7 +39,7 @@ module.exports = class Game {
     this.roles = []
     this.started = false
     this.everyone = this.guild.roles.find(r => r.name === '@everyone')
-    this.everyonePerms = { deny: ['VIEW_CHANNEL'], id: this.everyone.id } // Deny the permission to see a channel for @everyone
+    this.everyonePerms = { deny: ['VIEW_CHANNEL', 'SEND_MESSAGES'], id: this.everyone.id } // Deny the permission to see a channel for @everyone
   }
 
   /**
@@ -85,7 +86,7 @@ module.exports = class Game {
   /**
    * Start a game
    */
-  async start () {
+  async start (client) {
     this.started = true
     this.message.delete()
     this.roles = await this.createRoles()
@@ -119,22 +120,22 @@ module.exports = class Game {
     })
 
     this.channels.village.send('A peaceful night fall on the village of Millers Hollow ...')
-      .then(async () => {
-        let currentPlayer = this.players.find(p => p.role.name === 'Fortune teller')
-        if (!currentPlayer) { return Promise.resolve() }
-        let msg = `You wake up and use your powers to see through a person mind.\nChoose a person to check his role\n`
-        let others = this.players.filter(p => p.user.id !== currentPlayer.user.id)
-        for (let i = 0; i < others.length; i++) {
-          msg += `${i+1}. ${others[i].user.username}\n`
-        }
-        return this.channels.fortuneTeller.send(msg).then(m => {
-          let em = ['one', 'two', 'three', 'four', 'five']
-          for (let i = 0; i < others.length; i++) {
-            m.react(em[i])
-          }
-        })
-      })
+      .then( () =>  this.fortuneTellerTurn() )
+      .then( )
   }
+
+  async fortuneTellerTurn(){
+    let currentPlayer = this.players.find(p => p.role.name === 'Fortune teller')
+    if (!currentPlayer) { return Promise.resolve() }
+    let msg = `You wake up and use your powers to see through a person mind.\nChoose a person to check his role\n`
+    let others = this.players.filter(p => p.user.id !== currentPlayer.user.id)
+    let promises = []
+    promises.push(this.channels.fortuneTeller.send(`You wake up and use your powers to see through a person mind.\nChoose a person to check his role\n`))
+    for(let i = 0; i < others.length; i++) {
+      promises.push(this.channels.fortuneTeller.send(others[i].user.username).then(m => m.react('☝')))
+    }
+    return Promise.all(promises)    
+  }      
 
   /**
    * Fill the roles array
@@ -190,7 +191,7 @@ module.exports = class Game {
         witch.channel = c
       })
     await Promise.all([werewolfsChan, fortuneTellerChan, witchChan])
-    return shuffle([werewolf, werewolf, ordinaryTownsfolk, ordinaryTownsfolk, fortuneTeller, witch])
+    return shuffle(/*[fortuneTeller]*/[werewolf, ordinaryTownsfolk, fortuneTeller])
   }
 
   /**
